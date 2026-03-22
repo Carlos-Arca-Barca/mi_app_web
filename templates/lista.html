@@ -1,67 +1,31 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Lista de datos</title>
-    <style>
-        /* Filas pares con color gris claro */
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        /* Filas impares con color blanco */
-        tr:nth-child(odd) { background-color: #ffffff; }
+{% extends "base.html" %}
 
-        /* Estilo general de la tabla */
-        table {
-            border-collapse: collapse;
-            width: 60%;
-        }
+{% block contenido %}
 
-        th, td {
-            border: 1px solid #333;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background-color: #ddd;
-        }
-
-        /* Estilo de botones */
-        .btn {
-            padding: 4px 8px;
-            margin: 2px;
-            text-decoration: none;
-            color: white;
-            border-radius: 4px;
-            font-size: 0.9em;
-        }
-
-        .edit { background-color: #4CAF50; }   /* verde */
-        .delete { background-color: #f44336; } /* rojo */
-    </style>
-</head>
-<body>
-
-<h1>Datos guardados</h1>
-
-<table>
-    <tr>
-        <th>Nombre</th>
-        <th>Edad</th>
-        <th>Acciones</th>
-    </tr>
+<table class="table table-striped table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Nombre</th>
+            <th>Edad</th>
+            <th>Email</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
     {% for d in datos %}
-    <tr>
-        <td>{{ d.nombre }}</td>
-        <td>{{ d.edad }}</td>
-        <td>
-            <a href="/editar/{{ d.nombre }}" class="btn edit">Editar</a>
-            <a href="/eliminar/{{ d.nombre }}" class="btn delete">Eliminar</a>
-        </td>
-    </tr>
+        <tr>
+            <td>{{ d.nombre }}</td>
+            <td>{{ d.edad }}</td>
+            <td>{{ d.email }}</td>
+            <td>
+                <a href="/editar/{{ d.id }}" class="btn btn-sm btn-warning">Editar</a>
+                <a href="/eliminar/{{ d.id }}" class="btn btn-sm btn-danger">Eliminar</a>
+            </td>
+        </tr>
     {% endfor %}
+    </tbody>
 </table>
 
-<br>
-<a href="/">Volver al formulario</a>
+<a href="/" class="btn btn-primary">Nuevo</a>
 
-</body>
-</html>
+{% endblock %}

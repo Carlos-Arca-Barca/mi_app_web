@@ -1,90 +1,135 @@
-from flask import Flask, render_template, request, redirect
-import sqlite3
+
+
+
+
 import os
+import sqlite3
+from flask import Flask, render_template, request, redirect, url_for
 
-app = Flask(__name__)
-
-# Carpeta donde está este archivo app.py
+# -------------------------------------
+# 1️⃣ Rutas de archivos
+# -------------------------------------
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "datos.db")
 
-# Inicializar la base de datos
-def init_db():
+# -------------------------------------
+# 2️⃣ Crear app Flask
+# -------------------------------------
+app = Flask(__name__)
+
+# -------------------------------------
+# 3️⃣ Funciones de DB
+# -------------------------------------
+def get_conn():
+    """Devuelve la conexión a SQLite con filas como diccionarios"""
     conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row  # <-- filas como diccionarios
+    return conn
+
+def crear_tabla():
+    """Crea tabla si no existe"""
+    conn = get_conn()
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS personas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL UNIQUE,
-            edad INTEGER NOT NULL
+            nombre TEXT NOT NULL,
+            edad INTEGER NOT NULL,
+            email TEXT NOT NULL
         )
     """)
     conn.commit()
     conn.close()
 
-init_db()
+# Crear la tabla al iniciar
+crear_tabla()
 
-# Ruta principal: formulario
+# -------------------------------------
+# 4️⃣ Rutas de Flask
+# -------------------------------------
+
 @app.route("/", methods=["GET", "POST"])
 def index():
+    error = None
     if request.method == "POST":
-        nombre = request.form["nombre"]
-        edad = request.form["edad"]
+        nombre = request.form.get("nombre", "").strip()
+        edad = request.form.get("edad", "").strip()
+        email = request.form.get("email", "").strip()
 
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("INSERT INTO personas (nombre, edad) VALUES (?, ?)", (nombre, edad))
-        conn.commit()
-        conn.close()
+        # Validación back-end
+        if not nombre or not edad.isdigit() or not email:
+            error = "Todos los campos son obligatorios y la edad debe ser un número."
+        else:
+            conn = get_conn()
+            cursor = conn.cursor()
+            cursor.execute(
+                "INSERT INTO personas (nombre, edad, email) VALUES (?, ?, ?)",
+                (nombre, int(edad), email)
+            )
+            conn.commit()
+            conn.close()
+            return redirect(url_for("lista"))
 
-        return redirect("/lista")
-    return render_template("index.html")
+    return render_template("index.html", titulo="Nuevo Registro", activo="inicio", error=error)
 
-# Ruta lista: muestra tabla
+# -------------------------------------
 @app.route("/lista")
 def lista():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_conn()
     cursor = conn.cursor()
-    cursor.execute("SELECT nombre, edad FROM personas")
-    datos = cursor.fetchall()
+    cursor.execute("SELECT * FROM personas")
+    filas = cursor.fetchall()
     conn.close()
 
-    datos_dict = [{"nombre": d[0], "edad": d[1]} for d in datos]
-    return render_template("lista.html", datos=datos_dict)
+    # Convertir filas en diccionarios
+    datos = [dict(f) for f in filas]
 
-# Ruta eliminar
-@app.route("/eliminar/<nombre>")
-def eliminar(nombre):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM personas WHERE nombre = ?", (nombre,))
-    conn.commit()
-    conn.close()
-    return redirect("/lista")
+    return render_template("lista.html", titulo="Lista de Personas", activo="lista", datos=datos)
 
-# Ruta editar: muestra formulario para editar
-@app.route("/editar/<nombre>", methods=["GET", "POST"])
-def editar(nombre):
-    conn = sqlite3.connect(DB_PATH)
+# -------------------------------------
+@app.route("/editar/<int:id>", methods=["GET", "POST"])
+def editar(id):
+    conn = get_conn()
     cursor = conn.cursor()
+    cursor.execute("SELECT * FROM personas WHERE id = ?", (id,))
+    fila = cursor.fetchone()
+
+    if fila is None:
+        conn.close()
+        return "Registro no encontrado", 404
+
+    persona = dict(fila)
+    error = None
 
     if request.method == "POST":
-        nuevo_nombre = request.form["nombre"]
-        nueva_edad = request.form["edad"]
-        cursor.execute("UPDATE personas SET nombre = ?, edad = ? WHERE nombre = ?", (nuevo_nombre, nueva_edad, nombre))
-        conn.commit()
-        conn.close()
-        return redirect("/lista")
-    
-    cursor.execute("SELECT nombre, edad FROM personas WHERE nombre = ?", (nombre,))
-    persona = cursor.fetchone()
+        nombre = request.form.get("nombre", "").strip()
+        edad = request.form.get("edad", "").strip()
+        email = request.form.get("email", "").strip()
+
+        if not nombre or not edad.isdigit() or not email:
+            error = "Todos los campos son obligatorios y la edad debe ser un número."
+        else:
+            cursor.execute(
+                "UPDATE personas SET nombre=?, edad=?, email=? WHERE id=?",
+                (nombre, int(edad), email, id)
+            )
+            conn.commit()
+            conn.close()
+            return redirect(url_for("lista"))
+
     conn.close()
-    if persona:
-        return render_template("editar.html", persona={"nombre": persona[0], "edad": persona[1]})
-    else:
-        return redirect("/lista")
+    return render_template("editar.html", titulo="Editar Registro", activo="editar", persona=persona, error=error)
 
+# -------------------------------------
+@app.route("/eliminar/<int:id>")
+def eliminar(id):
+    conn = get_conn()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM personas WHERE id=?", (id,))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("lista"))
 
+# -------------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
-    
+    app.run(debug=True)
