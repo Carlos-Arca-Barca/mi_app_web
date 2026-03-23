@@ -1,4 +1,4 @@
-
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, redirect, url_for
@@ -9,15 +9,15 @@ app = Flask(__name__)
 # -------------------------------------
 # CONEXIÓN
 # -------------------------------------
+
 def get_conn():
     return psycopg2.connect(
-        dbname="mi_db",
-        user="mi_usuario",
-        password="OKLAHOMA",
-        host="localhost",
-        port=5432
+        dbname=os.environ.get("DB_NAME"),
+        user=os.environ.get("DB_USER"),
+        password=os.environ.get("DB_PASS"),
+        host=os.environ.get("DB_HOST"),
+        port=os.environ.get("DB_PORT")
     )
-
 # -------------------------------------
 # INDEX (INSERT)
 # -------------------------------------
