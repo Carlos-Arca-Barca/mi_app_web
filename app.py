@@ -4,11 +4,27 @@ from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime
 
+from dotenv import load_dotenv
+
+load_dotenv()  # carga las variables del .env
+
+
+
+
 app = Flask(__name__)
 
 # -------------------------------------
 # CONEXIÓN
 # -------------------------------------
+
+print(os.environ.get("DB_HOST"))  # prueba rápida
+print()
+print("DB_HOST:", os.environ.get("DB_HOST"))
+print("DB_USER:", os.environ.get("DB_USER"))
+print("DB_PASS:", os.environ.get("DB_PASS"))
+print("DB_NAME:", os.environ.get("DB_NAME"))
+print("DB_PORT:", os.environ.get("DB_PORT"))
+
 
 def get_conn():
     return psycopg2.connect(
