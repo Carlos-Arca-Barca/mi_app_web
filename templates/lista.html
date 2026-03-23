@@ -8,6 +8,7 @@
             <th>Nombre</th>
             <th>Edad</th>
             <th>Email</th>
+            <th>Fecha Nac.</th>
             <th>Acciones</th>
         </tr>
     </thead>
@@ -17,15 +18,16 @@
             <td>{{ d.nombre }}</td>
             <td>{{ d.edad }}</td>
             <td>{{ d.email }}</td>
+            <td>{{ d.fecha_nac }}</td>
             <td>
-                <a href="/editar/{{ d.id }}" class="btn btn-sm btn-warning">Editar</a>
-                <a href="/eliminar/{{ d.id }}" class="btn btn-sm btn-danger">Eliminar</a>
+                <a href="/editar/{{ d.id_contacto }}" class="btn btn-warning btn-sm">Editar</a>
+                <a href="/eliminar/{{ d.id_contacto }}" class="btn btn-danger btn-sm">Eliminar</a>
             </td>
         </tr>
     {% endfor %}
     </tbody>
 </table>
 
-<a href="/" class="btn btn-primary">Nuevo</a>
+<a href="/" class="btn btn-primary">Nuevo registro</a>
 
 {% endblock %}

@@ -1,133 +1,145 @@
 
-
-
-
-import os
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, redirect, url_for
+from datetime import datetime
 
-# -------------------------------------
-# 1️⃣ Rutas de archivos
-# -------------------------------------
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "datos.db")
-
-# -------------------------------------
-# 2️⃣ Crear app Flask
-# -------------------------------------
 app = Flask(__name__)
 
 # -------------------------------------
-# 3️⃣ Funciones de DB
+# CONEXIÓN
 # -------------------------------------
 def get_conn():
-    """Devuelve la conexión a SQLite con filas como diccionarios"""
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row  # <-- filas como diccionarios
-    return conn
-
-def crear_tabla():
-    """Crea tabla si no existe"""
-    conn = get_conn()
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS personas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nombre TEXT NOT NULL,
-            edad INTEGER NOT NULL,
-            email TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-# Crear la tabla al iniciar
-crear_tabla()
+    return psycopg2.connect(
+        dbname="mi_db",
+        user="mi_usuario",
+        password="OKLAHOMA",
+        host="localhost",
+        port=5432
+    )
 
 # -------------------------------------
-# 4️⃣ Rutas de Flask
+# INDEX (INSERT)
 # -------------------------------------
-
 @app.route("/", methods=["GET", "POST"])
 def index():
     error = None
+
     if request.method == "POST":
         nombre = request.form.get("nombre", "").strip()
         edad = request.form.get("edad", "").strip()
         email = request.form.get("email", "").strip()
+        fecha_nac = request.form.get("fecha_nac", "").strip()
 
-        # Validación back-end
-        if not nombre or not edad.isdigit() or not email:
-            error = "Todos los campos son obligatorios y la edad debe ser un número."
+        # Validación
+        if not nombre or not edad.isdigit() or not email or not fecha_nac:
+            error = "Todos los campos son obligatorios"
         else:
-            conn = get_conn()
-            cursor = conn.cursor()
-            cursor.execute(
-                "INSERT INTO personas (nombre, edad, email) VALUES (?, ?, ?)",
-                (nombre, int(edad), email)
-            )
-            conn.commit()
-            conn.close()
-            return redirect(url_for("lista"))
+            try:
+                # Convertir fecha a formato PostgreSQL
+                fecha_obj = datetime.strptime(fecha_nac, "%Y-%m-%d")
 
-    return render_template("index.html", titulo="Nuevo Registro", activo="inicio", error=error)
+                conn = get_conn()
+                cursor = conn.cursor()
 
+                cursor.execute(
+                    """INSERT INTO contactos (nombre, edad, email, fecha_nac)
+                       VALUES (%s, %s, %s, %s)""",
+                    (nombre, int(edad), email, fecha_obj)
+                )
+
+                conn.commit()
+                conn.close()
+
+                return redirect(url_for("lista"))
+
+            except Exception as e:
+                error = f"Error: {e}"
+
+    return render_template("index.html", titulo="Nuevo", activo="inicio", error=error)
+
+# -------------------------------------
+# LISTA
 # -------------------------------------
 @app.route("/lista")
 def lista():
     conn = get_conn()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM personas")
-    filas = cursor.fetchall()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    cursor.execute("""
+        SELECT 
+            id_contacto,
+            nombre,
+            edad,
+            email,
+            TO_CHAR(fecha_nac, 'DD-MM-YYYY') as fecha_nac
+        FROM contactos
+    """)
+
+    datos = cursor.fetchall()
     conn.close()
 
-    # Convertir filas en diccionarios
-    datos = [dict(f) for f in filas]
+    return render_template("lista.html", titulo="Lista", activo="lista", datos=datos)
 
-    return render_template("lista.html", titulo="Lista de Personas", activo="lista", datos=datos)
-
+# -------------------------------------
+# EDITAR
 # -------------------------------------
 @app.route("/editar/<int:id>", methods=["GET", "POST"])
 def editar(id):
     conn = get_conn()
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM personas WHERE id = ?", (id,))
-    fila = cursor.fetchone()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-    if fila is None:
+    cursor.execute("SELECT * FROM contactos WHERE id_contacto = %s", (id,))
+    persona = cursor.fetchone()
+
+    if not persona:
         conn.close()
-        return "Registro no encontrado", 404
+        return "No encontrado", 404
 
-    persona = dict(fila)
     error = None
 
     if request.method == "POST":
         nombre = request.form.get("nombre", "").strip()
         edad = request.form.get("edad", "").strip()
         email = request.form.get("email", "").strip()
+        fecha_nac = request.form.get("fecha_nac", "").strip()
 
-        if not nombre or not edad.isdigit() or not email:
-            error = "Todos los campos son obligatorios y la edad debe ser un número."
+        if not nombre or not edad.isdigit() or not email or not fecha_nac:
+            error = "Todos los campos son obligatorios"
         else:
-            cursor.execute(
-                "UPDATE personas SET nombre=?, edad=?, email=? WHERE id=?",
-                (nombre, int(edad), email, id)
-            )
-            conn.commit()
-            conn.close()
-            return redirect(url_for("lista"))
+            try:
+                fecha_obj = datetime.strptime(fecha_nac, "%Y-%m-%d")
+
+                cursor.execute(
+                    """UPDATE contactos 
+                       SET nombre=%s, edad=%s, email=%s, fecha_nac=%s 
+                       WHERE id_contacto=%s""",
+                    (nombre, int(edad), email, fecha_obj, id)
+                )
+
+                conn.commit()
+                conn.close()
+
+                return redirect(url_for("lista"))
+
+            except Exception as e:
+                error = f"Error: {e}"
 
     conn.close()
-    return render_template("editar.html", titulo="Editar Registro", activo="editar", persona=persona, error=error)
+    return render_template("editar.html", titulo="Editar", activo="editar", persona=persona, error=error)
 
+# -------------------------------------
+# ELIMINAR
 # -------------------------------------
 @app.route("/eliminar/<int:id>")
 def eliminar(id):
     conn = get_conn()
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM personas WHERE id=?", (id,))
+
+    cursor.execute("DELETE FROM contactos WHERE id_contacto=%s", (id,))
     conn.commit()
     conn.close()
+
     return redirect(url_for("lista"))
 
 # -------------------------------------
