@@ -3,12 +3,16 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 from flask import Flask, render_template, request, redirect, url_for
 from datetime import datetime
-
-from dotenv import load_dotenv
-
-load_dotenv()  # carga las variables del .env
+from pathlib import Path
 
 
+
+
+# Carga el .env solo si existe (útil para local)
+dotenv_path = Path(__file__).parent / ".env"
+if dotenv_path.exists():
+    from dotenv import load_dotenv
+    load_dotenv(dotenv_path)
 
 
 app = Flask(__name__)
