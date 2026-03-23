@@ -30,13 +30,17 @@ print("DB_NAME:", os.environ.get("DB_NAME"))
 print("DB_PORT:", os.environ.get("DB_PORT"))
 
 
+import psycopg2
+import os
+
 def get_conn():
     return psycopg2.connect(
         dbname=os.environ.get("DB_NAME"),
         user=os.environ.get("DB_USER"),
         password=os.environ.get("DB_PASS"),
         host=os.environ.get("DB_HOST"),
-        port=os.environ.get("DB_PORT")
+        port=os.environ.get("DB_PORT"),
+        hostaddr=os.environ.get("DB_HOST")  # fuerza IPv4
     )
 # -------------------------------------
 # INDEX (INSERT)
